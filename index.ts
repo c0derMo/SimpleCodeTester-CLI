@@ -76,10 +76,10 @@ async function checkCode(): Promise<void> {
             });
         }
         if(successfulTests == result[file].length) {
-            terminal.bold.green(`All ${successfulTests} tests successful.\n\n`);
+            terminal.bold.green(`  All ${successfulTests} tests successful.\n\n`);
         } else {
             let failedTests = result[file].length - successfulTests
-            terminal.bold.green(`${successfulTests} tests successful`).bold(", ").bold.red(`${failedTests} tests failed.\n\n`);
+            terminal.bold.green(`  ${successfulTests} tests successful`).bold(", ").bold.red(`${failedTests} tests failed.\n\n`);
         }
     }
 
@@ -172,7 +172,13 @@ async function main(): Promise<void> {
 
     switch (cfgProvider.getCommand()) {
         case Command.INTERACTIVE:
-            terminal("Running in interactive mode");
+            terminal.cyan("Please select your operation: \n")
+            let index = (await terminal.singleLineMenu(["Run checks", "List categories"]).promise).selectedIndex;
+            if(index === 0) {
+                await checkCode();
+            } else if(index === 1) {
+                await listCategories();
+            }
             break;
         case Command.CHECK:
             await checkCode();

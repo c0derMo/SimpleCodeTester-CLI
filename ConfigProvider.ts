@@ -34,9 +34,9 @@ export class ConfigProvider {
 
     public async parseCommandLine(cliArguments: string[]): Promise<void> {
         const args = await yargs()
-            .command("$0", "parse a .codetester file or run in interactive mode")
+            .command("$0", "run in interactive mode")
             .command("check", "upload the supplied files, and run check on it.")
-            .command("listchecks", "list checks")
+            .command("listcategories", "list categories")
             .option("u", {
                 alias: 'username',
                 describe: 'login username',
@@ -68,11 +68,13 @@ export class ConfigProvider {
             })
             .help()
             .version(false)
+            .epilog("Report issues with the CLI on GitHub, https://github.com/c0derMo/SimpleCodeTester-CLI.\n\n" +
+                "Thanks to @I-Al-Istannen for writing the SimpleCodeTester in the first place.")
             .parse(cliArguments);
         if(args._.includes("check")) {
             this.command = Command.CHECK;
         }
-        if(args._.includes("listchecks")) {
+        if(args._.includes("listcategories")) {
             this.command = Command.LISTCHECKS;
         }
         this.username = args.u || this.username;
