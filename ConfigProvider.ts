@@ -34,7 +34,7 @@ export class ConfigProvider {
 
     public async parseCommandLine(cliArguments: string[]): Promise<void> {
         const args = await yargs()
-            .command("$0", "run in interactive mode")
+            .command("$0", "CLI for the SimpleCodeTester")
             .command("check", "upload the supplied files, and run check on it.")
             .command("listcategories", "list categories")
             .option("u", {
@@ -67,8 +67,9 @@ export class ConfigProvider {
                 type: 'boolean'
             })
             .help()
-            .version(false)
-            .epilog("Report issues with the CLI on GitHub, https://github.com/c0derMo/SimpleCodeTester-CLI.\n\n" +
+            .version("SimpleCodeTester by @I-Al-Istannen (https://github.com/I-Al-Istannen/SimpleCodeTester)\n" +
+                "CLI by @c0derMo (https://github.com/c0derMo/SimpleCodeTester-CLI)")
+            .epilog("\nReport issues with the CLI on GitHub, https://github.com/c0derMo/SimpleCodeTester-CLI.\n\n" +
                 "Thanks to @I-Al-Istannen for writing the SimpleCodeTester in the first place.")
             .parse(cliArguments);
         if(args._.includes("check")) {

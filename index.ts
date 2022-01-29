@@ -3,8 +3,7 @@
 import {Command, ConfigProvider} from "./ConfigProvider";
 import {CheckResults, CodeTesterInterface} from "./CodeTesterInterface";
 import {terminal} from "terminal-kit";
-import {createReadStream, createWriteStream} from "fs";
-import {rm} from 'fs/promises';
+import {fs} from 'memfs';
 import archiver from "archiver";
 
 const cfgProvider = new ConfigProvider(terminal);
@@ -28,12 +27,12 @@ async function checkCode(): Promise<void> {
     let folderName = await cfgProvider.getSource();
     terminal(`Zipping ${folderName}...\n`);
     const archive = archiver('zip');
-    const fw = createWriteStream('tmp.zip');
+    const fw = fs.createWriteStream('/tmp.zip');
     archive.directory(folderName, false);
     archive.pipe(fw);
     await archive.finalize()
     await fw.close();
-    const fr = createReadStream("tmp.zip");
+    const fr = fs.createReadStream("/tmp.zip");
     await cfgProvider.getCategoryId();
     terminal("Uploading & testing code...\n");
     let result: CheckResults;
@@ -41,10 +40,8 @@ async function checkCode(): Promise<void> {
         result = await codeTesterInterface.checkCode(fr);
     } catch (e) {
         terminal.red.bold(e);
-        await rm('tmp.zip', { force: true });
         terminate();
     }
-    await rm('tmp.zip', { force: true });
 
     terminal.cyan.bold("\n     TEST RESULTS\n\n")
 
@@ -66,7 +63,7 @@ async function checkCode(): Promise<void> {
                     list.push(["^#^rfailed", test.check]);
                 }
             }
-            // @ts-expect-error
+            //@ts-expect-error
             terminal.table(list, {
                 hasBorder: true,
                 borderChars: 'lightRounded',
@@ -188,7 +185,7 @@ async function main(): Promise<void> {
             break;
     }
 
-    terminal.grabInput(false);
+    terminate();
 }
 
 void main();

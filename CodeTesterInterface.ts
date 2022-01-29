@@ -1,7 +1,7 @@
 import FormData from 'form-data';
 import axios from 'axios';
 import { ConfigProvider } from "./ConfigProvider";
-import {ReadStream} from "fs";
+import {IReadStream} from "memfs/lib/volume";
 
 export interface CheckCategory {
     id: number;
@@ -86,7 +86,7 @@ export class CodeTesterInterface {
         this.accessToken = response.data.token;
     }
 
-    public async checkCode(file: ReadStream): Promise<CheckResults> {
+    public async checkCode(file: IReadStream): Promise<CheckResults> {
         if (this.accessToken === "" || CodeTesterInterface.isExpiredToken(this.accessToken)) {
             await this.fetchAccessToken();
         }
