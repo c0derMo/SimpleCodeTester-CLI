@@ -1,10 +1,44 @@
 import yargs from 'yargs/yargs';
-import { Terminal } from "terminal-kit";
+import read from "read";
+import Logger from './Logger';
+import figures from "figures";
 
 export enum Command {
     INTERACTIVE,
     CHECK,
     LISTCHECKS
+}
+
+function asyncPrompt(question): Promise<string> {
+    let spinnerRunning = Logger.isSpinnerRunning();
+    if(spinnerRunning) Logger.stopSpinner();
+    return new Promise(resolve => read({
+        prompt: question
+    }, (err, ans) => {
+        if(err) process.exit(1);
+        if(spinnerRunning) Logger.startSpinner();
+        process.stdout.moveCursor(0,-1);
+        process.stdout.clearLine(0);
+        process.stdout.cursorTo(0);
+        resolve(ans);
+    }));
+}
+
+function asyncSilentPrompt(question): Promise<string> {
+    let spinnerRunning = Logger.isSpinnerRunning();
+    if(spinnerRunning) Logger.stopSpinner();
+    return new Promise(resolve => read({
+        prompt: question,
+        silent: true,
+        replace: figures.bullet
+    }, (err, ans) => {
+        if(err) process.exit(1);
+        if(spinnerRunning) Logger.startSpinner();
+        process.stdout.moveCursor(0,-1);
+        process.stdout.clearLine(0);
+        process.stdout.cursorTo(0);
+        resolve(ans);
+    }));
 }
 
 export class ConfigProvider {
@@ -17,9 +51,7 @@ export class ConfigProvider {
     private interactiveResults: boolean;
     private listChecks: boolean;
 
-    private readonly terminal: Terminal;
-
-    constructor(terminal: Terminal) {
+    constructor() {
         this.username = "";
         this.password = "";
         this.sourceFolder = "";
@@ -28,8 +60,6 @@ export class ConfigProvider {
         this.urlBase = "https://codetester.ialistannen.de";
         this.interactiveResults = false;
         this.listChecks = false;
-
-        this.terminal = terminal;
     }
 
     public async parseCommandLine(cliArguments: string[]): Promise<void> {
@@ -88,28 +118,21 @@ export class ConfigProvider {
 
     public async getCategoryId(): Promise<number> {
         while(this.categoryId < 0) {
-            this.terminal('Please enter a category id: ');
-            this.categoryId = parseInt(await this.terminal.inputField().promise);
-            this.terminal("\n");
+            this.categoryId = parseInt(await asyncPrompt("Please enter a category id: "));
         }
         return this.categoryId;
     }
 
     public async getUsername(): Promise<string> {
         while(this.username === "") {
-            this.terminal('Please enter your username: ');
-            this.username = await this.terminal.inputField().promise;
-            this.terminal("\n");
+            this.username = await asyncPrompt("Please enter your username: ");
         }
         return this.username;
     }
 
     public async getPassword(): Promise<string> {
         while(this.password === "") {
-            this.terminal('Password for ').yellow(`${this.username}`);
-            this.terminal(": ⚿ ");
-            this.password = await this.terminal.inputField({ echoChar: true }).promise;
-            this.terminal("\n");
+            this.password = await asyncSilentPrompt(`Password for ${this.username}: `);
         }
         return this.password;
     }
@@ -120,9 +143,7 @@ export class ConfigProvider {
 
     public async getSource(): Promise<string> {
         while(this.sourceFolder === "") {
-            this.terminal('Please enter the source folder: ');
-            this.sourceFolder = await this.terminal.inputField().promise;
-            this.terminal("\n");
+            this.sourceFolder = await asyncPrompt("Please enter the source folder: ");
         }
         return this.sourceFolder;
     }

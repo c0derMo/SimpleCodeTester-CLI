@@ -2,30 +2,26 @@
 
 import {Command, ConfigProvider} from "./ConfigProvider";
 import {CheckResults, CodeTesterInterface} from "./CodeTesterInterface";
-import {terminal} from "terminal-kit";
 import {fs} from 'memfs';
 import archiver from "archiver";
+import chalk from 'chalk';
+import Logger from "./Logger";
 
-const cfgProvider = new ConfigProvider(terminal);
+/**
+ * TODO
+ * https://github.com/substack/minimist
+ */
+
+const cfgProvider = new ConfigProvider();
 const codeTesterInterface = new CodeTesterInterface(cfgProvider);
 
-let global_qQuit = false;
-
 function terminate(): void {
-    terminal.grabInput(false );
-    if (global_qQuit) {
-        terminal.reset();
-    }
     process.exit(1);
 }
 
-terminal.on('key', function(name, matches, data) {
-    if(name === 'CTRL_C' || name === 'ESC' || (name === "q" && global_qQuit)) { terminate() }
-})
-
 async function checkCode(): Promise<void> {
     let folderName = await cfgProvider.getSource();
-    terminal(`Zipping ${folderName}...\n`);
+    Logger.updateSpinnerMessage(`Zipping ${folderName}...`);
     const archive = archiver('zip');
     const fw = fs.createWriteStream('/tmp.zip');
     archive.directory(folderName, false);
@@ -34,19 +30,21 @@ async function checkCode(): Promise<void> {
     await fw.close();
     const fr = fs.createReadStream("/tmp.zip");
     await cfgProvider.getCategoryId();
-    terminal("Uploading & testing code...\n");
+    Logger.persistMessage();
+    Logger.updateSpinnerMessage("Uploading & testing code...");
     let result: CheckResults;
     try {
         result = await codeTesterInterface.checkCode(fr);
     } catch (e) {
-        terminal.red.bold(e);
+        console.log(chalk.red.bold(e));
         terminate();
     }
+    Logger.persistMessage();
 
-    terminal.cyan.bold("\n     TEST RESULTS\n\n")
+    console.log(chalk.cyan.bold("\n     TEST RESULTS\n"));
 
     for(let file in result) {
-        terminal.yellow.bold(`${file}\n`);
+        console.log(chalk.yellow.bold(`${file}\n`));
         let successfulTests = 0;
         for(let test of result[file]) {
             if(test.result === "SUCCESSFUL") {
@@ -73,109 +71,108 @@ async function checkCode(): Promise<void> {
             });
         }
         if(successfulTests == result[file].length) {
-            terminal.bold.green(`  All ${successfulTests} tests successful.\n\n`);
+            console.log(chalk.bold.green(`  All ${successfulTests} tests successful.\n\n`));
         } else {
             let failedTests = result[file].length - successfulTests
-            terminal.bold.green(`  ${successfulTests} tests successful`).bold(", ").bold.red(`${failedTests} tests failed.\n\n`);
+            console.log(chalk.bold.green(`  ${successfulTests} tests successful`) + chalk.bold(", ") + chalk.bold.red(`${failedTests} tests failed.\n\n`));
         }
     }
 
-    terminal("Improve the code tester by writing more tests :)\n");
-    terminal("https://codetester.ialistannen.de/#/submit-check\n")
+    console.log("Improve the code tester by writing more tests :)\n");
+    console.log("https://codetester.ialistannen.de/#/submit-check\n")
 
-    if(cfgProvider.getInteractiveResults()) {
-        terminal("\n");
-        let shouldRun = true;
-        while(shouldRun) {
-            let file = "";
-            global_qQuit = true;
-            if(Object.keys(result).length > 1) {
-                terminal.cyan("Select a file to see checks for, or press (q) to quit:\n")
-                file = (await terminal.singleColumnMenu(Object.keys(result)).promise).selectedText;
-                terminal("\n")
-            } else {
-                file = Object.keys(result)[0];
-            }
-
-            let checks = [];
-            for(let test of result[file]) {
-                if(test.result === "SUCCESSFUL") {
-                    checks.push(`[✓] ${test.check}`);
-                } else {
-                    checks.push(`[✕] ${test.check}`);
-                }
-            }
-            terminal.cyan("Select a check to see the input/output for, or press (q) to quit:\n");
-            let selectedCheck = (await terminal.gridMenu(checks).promise).selectedIndex;
-            let inputLines = "";
-            terminal("\n")
-            for(let line of result[file][selectedCheck].output) {
-                switch (line.type) {
-                    case "PARAMETER":
-                        terminal.gray.italic(`$$ ${line.content}\n`);
-                        break;
-                    case "INPUT":
-                        terminal.gray("> ").brightGreen(line.content + "\n");
-                        inputLines += line.content + "\n";
-                        break;
-                    case "OUTPUT":
-                        terminal.green(`  ${line.content}\n`);
-                        break;
-                    case "OTHER":
-                        terminal.brightBlue(line.content + "\n");
-                        break;
-                    case "ERROR":
-                        terminal.red(`  ${line.content}\n`);
-                        break;
-                    default:
-                        terminal.brightCyan(line.content + " [[" + line.type + "]]\n");
-                        break;
-                }
-            }
-            terminal("\n");
-        }
-    }
+    // if(cfgProvider.getInteractiveResults()) {
+    //     console.log("\n");
+    //     let shouldRun = true;
+    //     while(shouldRun) {
+    //         let file = "";
+    //         global_qQuit = true;
+    //         if(Object.keys(result).length > 1) {
+    //             console.log(chalk.cyan("Select a file to see checks for, or press (q) to quit:\n"))
+    //             file = (await terminal.singleColumnMenu(Object.keys(result)).promise).selectedText;
+    //             terminal("\n")
+    //         } else {
+    //             file = Object.keys(result)[0];
+    //         }
+    //
+    //         let checks = [];
+    //         for(let test of result[file]) {
+    //             if(test.result === "SUCCESSFUL") {
+    //                 checks.push(`[✓] ${test.check}`);
+    //             } else {
+    //                 checks.push(`[✕] ${test.check}`);
+    //             }
+    //         }
+    //         terminal.cyan("Select a check to see the input/output for, or press (q) to quit:\n");
+    //         let selectedCheck = (await terminal.gridMenu(checks).promise).selectedIndex;
+    //         let inputLines = "";
+    //         terminal("\n")
+    //         for(let line of result[file][selectedCheck].output) {
+    //             switch (line.type) {
+    //                 case "PARAMETER":
+    //                     terminal.gray.italic(`$$ ${line.content}\n`);
+    //                     break;
+    //                 case "INPUT":
+    //                     terminal.gray("> ").brightGreen(line.content + "\n");
+    //                     inputLines += line.content + "\n";
+    //                     break;
+    //                 case "OUTPUT":
+    //                     terminal.green(`  ${line.content}\n`);
+    //                     break;
+    //                 case "OTHER":
+    //                     terminal.brightBlue(line.content + "\n");
+    //                     break;
+    //                 case "ERROR":
+    //                     terminal.red(`  ${line.content}\n`);
+    //                     break;
+    //                 default:
+    //                     terminal.brightCyan(line.content + " [[" + line.type + "]]\n");
+    //                     break;
+    //             }
+    //         }
+    //         terminal("\n");
+    //     }
+    // }
 }
 
 async function listCategories(): Promise<void> {
     let categories = await codeTesterInterface.getCategories();
-    terminal.cyan.bold("Categories\n\n")
+    console.log(chalk.cyan.bold("Categories\n\n"));
     for(let category of categories) {
-        terminal(`(${category.id}) ${category.name}\n`);
+        console.log(`(${category.id}) ${category.name}\n`);
     }
-    terminal("\n");
+    console.log("\n");
 }
 
 async function main(): Promise<void> {
-    terminal.grabInput({});
-
     await cfgProvider.parseCommandLine(process.argv);
 
-    terminal("SimpleCodeTester-CLI\n\n");
-    terminal.cyan("SimpleCodeTester by ").yellow.bold("@I-Al-Istannen\n");
-    terminal.cyan("CLI by ").yellow.bold("@c0derMo\n");
-    terminal("See cli arguments by using ").italic("--help\n\n");
+    console.log("SimpleCodeTester-CLI\n");
+    console.log(chalk.cyan("SimpleCodeTester by ") + chalk.yellow.bold("@I-Al-Istannen"));
+    console.log(chalk.cyan("CLI by ") + chalk.yellow.bold("@c0derMo"));
+    console.log("See cli arguments by using " + chalk.italic("--help\n"));
 
     let username = await cfgProvider.getUsername();
-    terminal(`Logging in as `).yellow(`${username}`).white(`...\n`);
+    Logger.updateSpinnerMessage(`Logging in as ` + chalk.yellow(`${username}`) + `...`);
+    Logger.startSpinner();
     try {
         await codeTesterInterface.fetchRefreshToken();
         await codeTesterInterface.fetchAccessToken();
     } catch (e) {
-        terminal.red.bold(e);
+        console.log(chalk.red.bold(e));
         terminate();
     }
-    terminal.green("Login successful!\n\n");
+    Logger.persistMessage(chalk.green("Login successful!\n"));
 
     switch (cfgProvider.getCommand()) {
         case Command.INTERACTIVE:
-            terminal.cyan("Please select your operation: \n")
-            let index = (await terminal.singleLineMenu(["Run checks", "List categories"]).promise).selectedIndex;
-            if(index === 0) {
-                await checkCode();
-            } else if(index === 1) {
-                await listCategories();
-            }
+            console.log(chalk.cyan("Please select your operation: \n"));
+            // let index = (await terminal.singleLineMenu(["Run checks", "List categories"]).promise).selectedIndex;
+            // if(index === 0) {
+            //     await checkCode();
+            // } else if(index === 1) {
+            //     await listCategories();
+            // }
             break;
         case Command.CHECK:
             await checkCode();
