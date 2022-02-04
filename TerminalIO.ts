@@ -100,7 +100,7 @@ export function printHelp(binary: string): void {
         -l, --list-checks           list all checks at the end
         -i, --interactive-result    start an interactive shell after checking the files,
                                         to see detailed results, requires -l
-            --no-update             disables update-checking
+            --noupdate              disables update-checking
             --help                  displays this help message
             --version               displays version info
     
