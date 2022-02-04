@@ -1,43 +1,11 @@
 import yargs from 'yargs/yargs';
-import read from "read";
-import Logger from './Logger';
+import { asyncPrompt, asyncSilentPrompt } from './TerminalIO';
+import chalk from "chalk";
 
 export enum Command {
     INTERACTIVE,
     CHECK,
     LISTCHECKS
-}
-
-function asyncPrompt(question): Promise<string> {
-    let spinnerRunning = Logger.isSpinnerRunning();
-    if(spinnerRunning) Logger.stopSpinner();
-    return new Promise(resolve => read({
-        prompt: question
-    }, (err, ans) => {
-        if(err) process.exit(1);
-        process.stdout.moveCursor(0,-1);
-        process.stdout.clearLine(0);
-        process.stdout.cursorTo(0);
-        if(spinnerRunning) Logger.startSpinner();
-        resolve(ans);
-    }));
-}
-
-function asyncSilentPrompt(question): Promise<string> {
-    let spinnerRunning = Logger.isSpinnerRunning();
-    if(spinnerRunning) Logger.stopSpinner();
-    return new Promise(resolve => read({
-        prompt: question,
-        silent: true,
-        replace: "*"
-    }, (err, ans) => {
-        if(err) process.exit(1);
-        process.stdout.moveCursor(0,-1);
-        process.stdout.clearLine(0);
-        process.stdout.cursorTo(0);
-        if(spinnerRunning) Logger.startSpinner();
-        resolve(ans);
-    }));
 }
 
 export class ConfigProvider {
@@ -131,7 +99,7 @@ export class ConfigProvider {
 
     public async getPassword(): Promise<string> {
         while(this.password === "") {
-            this.password = await asyncSilentPrompt(`Password for ${this.username}: `);
+            this.password = await asyncSilentPrompt(`Password for ${chalk.yellow(this.username)}: `);
         }
         return this.password;
     }

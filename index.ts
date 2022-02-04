@@ -5,7 +5,7 @@ import {CheckResults, CodeTesterInterface} from "./CodeTesterInterface";
 import {fs} from 'memfs';
 import archiver from "archiver";
 import chalk from 'chalk';
-import Logger from "./Logger";
+import Progress, {asyncPrompt} from "./TerminalIO";
 
 /**
  * TODO
@@ -17,7 +17,7 @@ const codeTesterInterface = new CodeTesterInterface(cfgProvider);
 
 async function checkCode(): Promise<void> {
     let folderName = await cfgProvider.getSource();
-    Logger.updateSpinnerMessage(`Zipping ${folderName}...`);
+    Progress.updateSpinnerMessage(`Zipping ${folderName}...`);
     const archive = archiver('zip');
     const fw = fs.createWriteStream('/tmp.zip');
     archive.directory(folderName, false);
@@ -25,22 +25,24 @@ async function checkCode(): Promise<void> {
     await archive.finalize()
     await fw.close();
     const fr = fs.createReadStream("/tmp.zip");
+    Progress.persistMessage(`${chalk.green(">")} Zipped ${folderName}`);
+    Progress.updateSpinnerMessage("Uploading & testing code...");
     await cfgProvider.getCategoryId();
-    Logger.persistMessage(`${chalk.green(">")} Zipped ${folderName}`);
-    Logger.updateSpinnerMessage("Uploading & testing code...");
     let result: CheckResults;
     try {
         result = await codeTesterInterface.checkCode(fr);
     } catch (e) {
-        Logger.stopSpinner();
+        Progress.stopSpinner();
         console.log(chalk.red.bold(e));
         process.exitCode = 1;
         return;
     }
-    Logger.persistMessage(`${chalk.green(">")} Uploaded & tested code`);
-    Logger.stopSpinner();
+    Progress.persistMessage(`${chalk.green(">")} Uploaded & tested code`);
+    Progress.stopSpinner();
 
     console.log(chalk.cyan.bold("\n     TEST RESULTS\n"));
+
+    let idx = 1;
 
     for(let file in result) {
         console.log(chalk.yellow.bold(`${file}`));
@@ -50,120 +52,129 @@ async function checkCode(): Promise<void> {
                 successfulTests++;
             }
         }
+        if(cfgProvider.getCheckList()) {
+            for(let test of result[file]) {
+                const prefix = cfgProvider.getInteractiveResults() ? ` (${idx++})` : "";
+                if(test.result === "SUCCESSFUL") {
+                    console.log(`    ${chalk.green("✓")} ` + test.check + prefix);
+                } else {
+                    console.log(`    ${chalk.red("✕")} ` + test.check + prefix);
+                }
+            }
+        }
         if(successfulTests == result[file].length) {
             console.log(chalk.bold.green(`  All ${successfulTests} tests successful.`));
         } else {
             let failedTests = result[file].length - successfulTests
-            console.log(chalk.bold.green(`  ${successfulTests} tests successful`) + chalk.bold(", ") + chalk.bold.red(`${failedTests} tests failed.\n`));
-        }
-        if(cfgProvider.getCheckList()) {
-            for(let test of result[file]) {
-                if(test.result === "SUCCESSFUL") {
-                    console.log(`    ${chalk.green("✓")} ` + test.check);
-                } else {
-                    console.log(`    ${chalk.red("✕")} ` + test.check);
-                }
-            }
+            console.log(chalk.bold.green(`  ${successfulTests} tests successful`) + chalk.bold(", ") + chalk.bold.red(`${failedTests} tests failed.`));
         }
     }
 
     console.log("\nImprove the code tester by writing more tests :)");
     console.log("https://codetester.ialistannen.de/#/submit-check\n");
 
-    // if(cfgProvider.getInteractiveResults()) {
-    //     console.log("\n");
-    //     let shouldRun = true;
-    //     while(shouldRun) {
-    //         let file = "";
-    //         global_qQuit = true;
-    //         if(Object.keys(result).length > 1) {
-    //             console.log(chalk.cyan("Select a file to see checks for, or press (q) to quit:\n"))
-    //             file = (await terminal.singleColumnMenu(Object.keys(result)).promise).selectedText;
-    //             terminal("\n")
-    //         } else {
-    //             file = Object.keys(result)[0];
-    //         }
-    //
-    //         let checks = [];
-    //         for(let test of result[file]) {
-    //             if(test.result === "SUCCESSFUL") {
-    //                 checks.push(`[✓] ${test.check}`);
-    //             } else {
-    //                 checks.push(`[✕] ${test.check}`);
-    //             }
-    //         }
-    //         terminal.cyan("Select a check to see the input/output for, or press (q) to quit:\n");
-    //         let selectedCheck = (await terminal.gridMenu(checks).promise).selectedIndex;
-    //         let inputLines = "";
-    //         terminal("\n")
-    //         for(let line of result[file][selectedCheck].output) {
-    //             switch (line.type) {
-    //                 case "PARAMETER":
-    //                     terminal.gray.italic(`$$ ${line.content}\n`);
-    //                     break;
-    //                 case "INPUT":
-    //                     terminal.gray("> ").brightGreen(line.content + "\n");
-    //                     inputLines += line.content + "\n";
-    //                     break;
-    //                 case "OUTPUT":
-    //                     terminal.green(`  ${line.content}\n`);
-    //                     break;
-    //                 case "OTHER":
-    //                     terminal.brightBlue(line.content + "\n");
-    //                     break;
-    //                 case "ERROR":
-    //                     terminal.red(`  ${line.content}\n`);
-    //                     break;
-    //                 default:
-    //                     terminal.brightCyan(line.content + " [[" + line.type + "]]\n");
-    //                     break;
-    //             }
-    //         }
-    //         terminal("\n");
-    //     }
-    // }
+    if(cfgProvider.getInteractiveResults()) {
+        let shouldRun = true;
+        while(shouldRun) {
+            let id = -1;
+            console.log("Enter a check number to see the check details or type 'q' to quit.");
+            while(id < 0 || isNaN(id)) {
+                const tmp = await asyncPrompt("> ");
+                if(tmp.toLowerCase() === "q") {
+                    return;
+                } else {
+                    id = parseInt(tmp);
+                }
+            }
+            let fileId = 0;
+            while(id > result[Object.keys(result)[fileId]].length) {
+                id -= result[Object.keys(result)[fileId]].length;
+                fileId++;
+                if(fileId >= Object.keys(result).length) {
+                    break;
+                }
+            }
+            if(fileId >= Object.keys(result).length) {
+                console.log(chalk.red("Invalid check id."));
+                continue;
+            }
+            for(let line of result[Object.keys(result)[fileId]][id-1].output) {
+                switch(line.type) {
+                    case "PARAMETER":
+                        console.log(chalk.gray.italic(`$$ ${line.content}`));
+                        break;
+                    case "INPUT":
+                        console.log(chalk.gray("> ") + chalk.greenBright(line.content));
+                        break;
+                    case "OUTPUT":
+                        console.log(chalk.green(`  ${line.content}`));
+                        break;
+                    case "OTHER":
+                        console.log(chalk.blueBright(line.content));
+                        break;
+                    case "ERROR":
+                        console.log(chalk.red(`  ${line.content}`));
+                        break;
+                    default:
+                        console.log(chalk.cyanBright(line.content + " [[" + line.type + "]]"));
+                        break;
+                }
+            }
+        }
+    }
 }
 
 async function listCategories(): Promise<void> {
+    Progress.updateSpinnerMessage("Querying categories");
     let categories = await codeTesterInterface.getCategories();
-    console.log(chalk.cyan.bold("Categories\n\n"));
+    Progress.persistMessage(chalk.green("> ") + "Queried categories");
+    Progress.stopSpinner();
+    console.log(chalk.cyan.bold("Categories\n"));
     for(let category of categories) {
-        console.log(`(${category.id}) ${category.name}\n`);
+        console.log(`(${category.id}) ${category.name}`);
     }
-    console.log("\n");
 }
 
 async function main(): Promise<void> {
     await cfgProvider.parseCommandLine(process.argv);
 
-    console.log("SimpleCodeTester-CLI\n");
+    console.log(chalk.cyan("SimpleCodeTester-CLI\n"));
     console.log(chalk.cyan("SimpleCodeTester by ") + chalk.yellow.bold("@I-Al-Istannen"));
     console.log(chalk.cyan("CLI by ") + chalk.yellow.bold("@c0derMo"));
     console.log("See cli arguments by using " + chalk.italic("--help\n"));
 
     let username = await cfgProvider.getUsername();
-    Logger.updateSpinnerMessage(`Logging in as ${chalk.yellow(username)}...`);
-    Logger.startSpinner();
+    Progress.updateSpinnerMessage(`Logging in as ${chalk.yellow(username)}...`);
+    Progress.startSpinner();
     try {
         await codeTesterInterface.fetchRefreshToken();
         await codeTesterInterface.fetchAccessToken();
     } catch (e) {
-        Logger.stopSpinner();
+        Progress.stopSpinner();
         console.log(chalk.red.bold(e));
         process.exitCode = 1;
         return;
     }
-    Logger.persistMessage(`${chalk.green(">")} Logged in as ${username}`);
+    Progress.persistMessage(`${chalk.green(">")} Logged in as ${chalk.yellow(username)}`);
 
     switch (cfgProvider.getCommand()) {
         case Command.INTERACTIVE:
-            console.log(chalk.cyan("Please select your operation: \n"));
-            // let index = (await terminal.singleLineMenu(["Run checks", "List categories"]).promise).selectedIndex;
-            // if(index === 0) {
-            //     await checkCode();
-            // } else if(index === 1) {
-            //     await listCategories();
-            // }
+            Progress.stopSpinner();
+            switch((await asyncPrompt("Do you want to (r)un checks, or (l)ist categories? ")).toLowerCase()) {
+                case "r":
+                    Progress.persistMessage("  'Run checks' selected.");
+                    Progress.startSpinner();
+                    await checkCode();
+                    break;
+                case "l":
+                    Progress.persistMessage("  'List categories' selected.");
+                    Progress.startSpinner();
+                    await listCategories();
+                    break;
+                default:
+                    console.log("Invalid input. Exiting.");
+                    break;
+            }
             break;
         case Command.CHECK:
             await checkCode();
