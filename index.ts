@@ -6,6 +6,7 @@ import {fs} from 'memfs';
 import archiver from "archiver";
 import chalk from 'chalk';
 import Progress, {asyncPrompt} from "./TerminalIO";
+import {checkForUpdates} from "./GHUpdateChecker";
 
 /**
  * TODO
@@ -142,6 +143,11 @@ async function main(): Promise<void> {
     console.log(chalk.cyan("SimpleCodeTester by ") + chalk.yellow.bold("@I-Al-Istannen"));
     console.log(chalk.cyan("CLI by ") + chalk.yellow.bold("@c0derMo"));
     console.log("See cli arguments by using " + chalk.italic("--help\n"));
+
+    if(cfgProvider.getUpdateCheck()) {
+        let update = await checkForUpdates();
+        if(update) console.log(update);
+    }
 
     let username = await cfgProvider.getUsername();
     Progress.updateSpinnerMessage(`Logging in as ${chalk.yellow(username)}...`);

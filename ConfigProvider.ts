@@ -17,6 +17,7 @@ export class ConfigProvider {
     private command: Command;
     private interactiveResults: boolean;
     private listChecks: boolean;
+    private disableUpdate: boolean;
 
     constructor() {
         this.username = "";
@@ -27,6 +28,7 @@ export class ConfigProvider {
         this.urlBase = "https://codetester.ialistannen.de";
         this.interactiveResults = false;
         this.listChecks = false;
+        this.disableUpdate = false;
     }
 
     public async parseCommandLine(cliArguments: string[]): Promise<void> {
@@ -60,7 +62,11 @@ export class ConfigProvider {
             })
             .option("i", {
                 alias: 'interactive-result',
-                describe: 'start an interactive shell after checking files',
+                describe: 'start an interactive shell after checking files, requires -l',
+                type: 'boolean'
+            })
+            .option("noupdate", {
+                describe: 'disables update checking',
                 type: 'boolean'
             })
             .help()
@@ -81,6 +87,7 @@ export class ConfigProvider {
         this.categoryId = args.category || this.categoryId;
         this.interactiveResults = args.i || this.interactiveResults;
         this.listChecks = args.l || this.listChecks;
+        this.disableUpdate = args.noupdate|| this.disableUpdate;
     }
 
     public async getCategoryId(): Promise<number> {
@@ -121,5 +128,9 @@ export class ConfigProvider {
 
     public getCheckList(): boolean {
         return this.listChecks;
+    }
+
+    public getUpdateCheck(): boolean {
+        return !this.disableUpdate;
     }
 }
