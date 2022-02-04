@@ -1,6 +1,7 @@
 import { asyncPrompt, asyncSilentPrompt } from './TerminalIO';
 import chalk from "chalk";
 import parseArgs from 'minimist';
+import {FileHandle} from "fs/promises";
 
 export enum Command {
     INTERACTIVE,
@@ -31,6 +32,25 @@ export class ConfigProvider {
         this.interactiveResults = false;
         this.listChecks = false;
         this.disableUpdate = false;
+    }
+
+    public async parseFile(fileHandler: FileHandle) {
+        const jsonData = JSON.parse(await fileHandler.readFile('utf-8'));
+        switch(jsonData.command) {
+            case "check":
+                this.command = Command.CHECK;
+                break;
+            case "listcategories":
+                this.command = Command.LISTCHECKS;
+                break;
+        }
+        this.username = jsonData.username || this.username;
+        this.password = jsonData.password || this.password;
+        this.sourceFolder = jsonData.source || this.sourceFolder;
+        this.categoryId = jsonData.categoryId || this.categoryId;
+        this.interactiveResults = jsonData.interactiveResults || this.interactiveResults;
+        this.listChecks = jsonData.listChecks || this.listChecks;
+        this.disableUpdate = jsonData.disableUpdate || this.disableUpdate;
     }
 
     public async parseCommandLine(cliArguments: string[]): Promise<Command> {

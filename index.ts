@@ -7,6 +7,7 @@ import archiver from "archiver";
 import chalk from 'chalk';
 import Progress, {asyncPrompt, printHelp, printVersion} from "./TerminalIO";
 import {checkForUpdates} from "./GHUpdateChecker";
+import {open} from 'fs/promises';
 
 const cfgProvider = new ConfigProvider();
 const codeTesterInterface = new CodeTesterInterface(cfgProvider);
@@ -132,6 +133,11 @@ async function listCategories(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+    try {
+        let fd = await open(".codetester", "r");
+        await cfgProvider.parseFile(fd);
+    } catch {}
+
     const command = await cfgProvider.parseCommandLine(process.argv);
 
     if(command === Command.VERSION) {
