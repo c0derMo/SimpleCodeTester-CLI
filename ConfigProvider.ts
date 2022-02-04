@@ -1,11 +1,13 @@
-import yargs from 'yargs/yargs';
 import { asyncPrompt, asyncSilentPrompt } from './TerminalIO';
 import chalk from "chalk";
+import parseArgs from 'minimist';
 
 export enum Command {
     INTERACTIVE,
     CHECK,
-    LISTCHECKS
+    LISTCHECKS,
+    VERSION,
+    HELP
 }
 
 export class ConfigProvider {
@@ -31,50 +33,20 @@ export class ConfigProvider {
         this.disableUpdate = false;
     }
 
-    public async parseCommandLine(cliArguments: string[]): Promise<void> {
-        const args = await yargs()
-            .command("$0", "CLI for the SimpleCodeTester")
-            .command("check", "upload the supplied files, and run check on it.")
-            .command("listcategories", "list categories")
-            .option("u", {
-                alias: 'username',
-                describe: 'login username',
-                type: 'string'
-            })
-            .option('p', {
-                alias: 'password',
-                describe: 'login password',
-                type: 'string'
-            })
-            .option('src', {
-                describe: 'source folder',
-                type: 'string'
-            })
-            .option('category', {
-                alias: 'c',
-                describe: 'category id to run',
-                type: 'number'
-            })
-            .option("l", {
-                alias: "list-checks",
-                describe: "list all checks and whether they were passed or not",
-                type: "boolean"
-            })
-            .option("i", {
-                alias: 'interactive-result',
-                describe: 'start an interactive shell after checking files, requires -l',
-                type: 'boolean'
-            })
-            .option("noupdate", {
-                describe: 'disables update checking',
-                type: 'boolean'
-            })
-            .help()
-            .version("SimpleCodeTester by @I-Al-Istannen (https://github.com/I-Al-Istannen/SimpleCodeTester)\n" +
-                "CLI by @c0derMo (https://github.com/c0derMo/SimpleCodeTester-CLI)")
-            .epilog("\nReport issues with the CLI on GitHub, https://github.com/c0derMo/SimpleCodeTester-CLI.\n\n" +
-                "Thanks to @I-Al-Istannen for writing the SimpleCodeTester in the first place.")
-            .parse(cliArguments);
+    public async parseCommandLine(cliArguments: string[]): Promise<Command> {
+        const args = parseArgs(cliArguments, {
+            string: ["src", "c", "u", "p"],
+            boolean: ["l", "i", "noupdate", "help", "version"],
+            alias: {
+                "c": "category",
+                "u": "username",
+                "p": "password",
+                "l": "list-checks",
+                "i": "interactive-results"
+            }
+        });
+        if(args.help) return Command.HELP;
+        if(args.version) return Command.VERSION;
         if(args._.includes("check")) {
             this.command = Command.CHECK;
         }
@@ -84,10 +56,11 @@ export class ConfigProvider {
         this.username = args.u || this.username;
         this.password = args.p || this.password;
         this.sourceFolder = args.src || this.sourceFolder;
-        this.categoryId = args.category || this.categoryId;
+        this.categoryId = args.c || this.categoryId;
         this.interactiveResults = args.i || this.interactiveResults;
         this.listChecks = args.l || this.listChecks;
-        this.disableUpdate = args.noupdate|| this.disableUpdate;
+        this.disableUpdate = args.noupdate || this.disableUpdate;
+        return args.command;
     }
 
     public async getCategoryId(): Promise<number> {

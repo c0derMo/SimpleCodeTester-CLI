@@ -1,4 +1,5 @@
 import read from "read";
+import {VERSION_IDENTIFIER} from "./GHUpdateChecker";
 
 const frames = ['-', '\\', '|', '/'];
 
@@ -79,4 +80,39 @@ export function asyncSilentPrompt(question): Promise<string> {
         if(spinnerRunning) progress.startSpinner();
         resolve(ans);
     }));
+}
+
+export function printHelp(binary: string): void {
+    console.log(`CLI for the SimpleCodeTester.
+    
+    Usage: ${binary} [check|listcategories] [-u username] [-p password]
+                    [--src source folder] [-c category] [-l] [-i] [--no-update] [--help] [--version]
+    
+    Commands:
+        check           zip the supplied source folder, upload it and run checks on it.
+        listcategories  list all categories on the codetester.
+    
+    Options:
+        -u, --username              username to login with
+        -p, --password              password to login with
+            --src                   source folder to zip and upload
+        -c, --category              category of checks to run
+        -l, --list-checks           list all checks at the end
+        -i, --interactive-result    start an interactive shell after checking the files,
+                                        to see detailed results
+            --no-update             disables update-checking
+            --help                  displays this help message
+            --version               displays version info
+    
+    Report issues with the CLI on GitHub, at
+    https://github.com/c0derMo/SimpleCodeTester-CLI.
+    
+    Thanks to @I-Al-Istannen for writing the SimpleCodeTester in the first place.
+    `);
+}
+
+export function printVersion(): void {
+    console.log(`SimpleCodeTester by @I-Al-Istannen (https://I-Al-Istannen/SimpleCodeTester)
+CLI by @c0derMo (https://c0derMo/SimpleCodeTester-CLI
+CLI version ${VERSION_IDENTIFIER}`);
 }

@@ -5,13 +5,8 @@ import {CheckResults, CodeTesterInterface} from "./CodeTesterInterface";
 import {fs} from 'memfs';
 import archiver from "archiver";
 import chalk from 'chalk';
-import Progress, {asyncPrompt} from "./TerminalIO";
+import Progress, {asyncPrompt, printHelp, printVersion} from "./TerminalIO";
 import {checkForUpdates} from "./GHUpdateChecker";
-
-/**
- * TODO
- * https://github.com/substack/minimist
- */
 
 const cfgProvider = new ConfigProvider();
 const codeTesterInterface = new CodeTesterInterface(cfgProvider);
@@ -137,7 +132,16 @@ async function listCategories(): Promise<void> {
 }
 
 async function main(): Promise<void> {
-    await cfgProvider.parseCommandLine(process.argv);
+    const command = await cfgProvider.parseCommandLine(process.argv);
+
+    if(command === Command.VERSION) {
+        printVersion();
+        return;
+    }
+    if(command === Command.HELP) {
+        printHelp(process.argv0);
+        return;
+    }
 
     console.log(chalk.cyan("SimpleCodeTester-CLI\n"));
     console.log(chalk.cyan("SimpleCodeTester by ") + chalk.yellow.bold("@I-Al-Istannen"));
