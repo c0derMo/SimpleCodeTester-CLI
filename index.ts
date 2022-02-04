@@ -15,10 +15,6 @@ import Logger from "./Logger";
 const cfgProvider = new ConfigProvider();
 const codeTesterInterface = new CodeTesterInterface(cfgProvider);
 
-function terminate(): void {
-    process.exit(1);
-}
-
 async function checkCode(): Promise<void> {
     let folderName = await cfgProvider.getSource();
     Logger.updateSpinnerMessage(`Zipping ${folderName}...`);
@@ -30,56 +26,49 @@ async function checkCode(): Promise<void> {
     await fw.close();
     const fr = fs.createReadStream("/tmp.zip");
     await cfgProvider.getCategoryId();
-    Logger.persistMessage();
+    Logger.persistMessage(`${chalk.green(">")} Zipped ${folderName}`);
     Logger.updateSpinnerMessage("Uploading & testing code...");
     let result: CheckResults;
     try {
         result = await codeTesterInterface.checkCode(fr);
     } catch (e) {
+        Logger.stopSpinner();
         console.log(chalk.red.bold(e));
-        terminate();
+        process.exitCode = 1;
+        return;
     }
-    Logger.persistMessage();
+    Logger.persistMessage(`${chalk.green(">")} Uploaded & tested code`);
+    Logger.stopSpinner();
 
     console.log(chalk.cyan.bold("\n     TEST RESULTS\n"));
 
     for(let file in result) {
-        console.log(chalk.yellow.bold(`${file}\n`));
+        console.log(chalk.yellow.bold(`${file}`));
         let successfulTests = 0;
         for(let test of result[file]) {
             if(test.result === "SUCCESSFUL") {
                 successfulTests++;
             }
         }
-        if(cfgProvider.getCheckList()) {
-            let list = [] as string[][];
-
-            for(let test of result[file]) {
-                if(test.result === "SUCCESSFUL") {
-                    list.push(["^#^gpassed", test.check]);
-                } else {
-                    list.push(["^#^rfailed", test.check]);
-                }
-            }
-            //@ts-expect-error
-            terminal.table(list, {
-                hasBorder: true,
-                borderChars: 'lightRounded',
-                contentHasMarkup: true,
-                width: 80,
-                fit: true
-            });
-        }
         if(successfulTests == result[file].length) {
-            console.log(chalk.bold.green(`  All ${successfulTests} tests successful.\n\n`));
+            console.log(chalk.bold.green(`  All ${successfulTests} tests successful.`));
         } else {
             let failedTests = result[file].length - successfulTests
-            console.log(chalk.bold.green(`  ${successfulTests} tests successful`) + chalk.bold(", ") + chalk.bold.red(`${failedTests} tests failed.\n\n`));
+            console.log(chalk.bold.green(`  ${successfulTests} tests successful`) + chalk.bold(", ") + chalk.bold.red(`${failedTests} tests failed.\n`));
+        }
+        if(cfgProvider.getCheckList()) {
+            for(let test of result[file]) {
+                if(test.result === "SUCCESSFUL") {
+                    console.log(`    ${chalk.green("✓")} ` + test.check);
+                } else {
+                    console.log(`    ${chalk.red("✕")} ` + test.check);
+                }
+            }
         }
     }
 
-    console.log("Improve the code tester by writing more tests :)\n");
-    console.log("https://codetester.ialistannen.de/#/submit-check\n")
+    console.log("\nImprove the code tester by writing more tests :)");
+    console.log("https://codetester.ialistannen.de/#/submit-check\n");
 
     // if(cfgProvider.getInteractiveResults()) {
     //     console.log("\n");
@@ -153,16 +142,18 @@ async function main(): Promise<void> {
     console.log("See cli arguments by using " + chalk.italic("--help\n"));
 
     let username = await cfgProvider.getUsername();
-    Logger.updateSpinnerMessage(`Logging in as ` + chalk.yellow(`${username}`) + `...`);
+    Logger.updateSpinnerMessage(`Logging in as ${chalk.yellow(username)}...`);
     Logger.startSpinner();
     try {
         await codeTesterInterface.fetchRefreshToken();
         await codeTesterInterface.fetchAccessToken();
     } catch (e) {
+        Logger.stopSpinner();
         console.log(chalk.red.bold(e));
-        terminate();
+        process.exitCode = 1;
+        return;
     }
-    Logger.persistMessage(chalk.green("Login successful!\n"));
+    Logger.persistMessage(`${chalk.green(">")} Logged in as ${username}`);
 
     switch (cfgProvider.getCommand()) {
         case Command.INTERACTIVE:
@@ -181,8 +172,6 @@ async function main(): Promise<void> {
             await listCategories();
             break;
     }
-
-    terminate();
 }
 
 void main();

@@ -1,7 +1,6 @@
 import yargs from 'yargs/yargs';
 import read from "read";
 import Logger from './Logger';
-import figures from "figures";
 
 export enum Command {
     INTERACTIVE,
@@ -16,10 +15,10 @@ function asyncPrompt(question): Promise<string> {
         prompt: question
     }, (err, ans) => {
         if(err) process.exit(1);
-        if(spinnerRunning) Logger.startSpinner();
         process.stdout.moveCursor(0,-1);
         process.stdout.clearLine(0);
         process.stdout.cursorTo(0);
+        if(spinnerRunning) Logger.startSpinner();
         resolve(ans);
     }));
 }
@@ -30,13 +29,13 @@ function asyncSilentPrompt(question): Promise<string> {
     return new Promise(resolve => read({
         prompt: question,
         silent: true,
-        replace: figures.bullet
+        replace: "*"
     }, (err, ans) => {
         if(err) process.exit(1);
-        if(spinnerRunning) Logger.startSpinner();
         process.stdout.moveCursor(0,-1);
         process.stdout.clearLine(0);
         process.stdout.cursorTo(0);
+        if(spinnerRunning) Logger.startSpinner();
         resolve(ans);
     }));
 }
