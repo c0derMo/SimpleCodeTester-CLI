@@ -107,7 +107,7 @@ async function checkCode(): Promise<void> {
                         console.log(chalk.gray.italic(`$$ ${line.content}`));
                         break;
                     case "INPUT":
-                        console.log(chalk.gray("> ") + chalk.greenBright(line.content.replace(/\s/, "␣")));
+                        console.log(chalk.gray("> ") + chalk.greenBright(line.content.replace(/\s/g, "␣")));
                         break;
                     case "OUTPUT":
                         console.log(chalk.green(`  ${line.content}`));
