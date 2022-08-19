@@ -13,6 +13,7 @@ const cfgProvider = new ConfigProvider();
 const codeTesterInterface = new CodeTesterInterface(cfgProvider);
 
 async function checkCode(): Promise<void> {
+    Progress.startSpinner();
     let folderName = await cfgProvider.getSource();
     Progress.updateSpinnerMessage(`Zipping ${folderName}...`);
     const archive = archiver('zip');
@@ -74,10 +75,15 @@ async function checkCode(): Promise<void> {
         let shouldRun = true;
         while(shouldRun) {
             let id = -1;
-            console.log("Enter a check number to see the check details or type 'q' to quit.");
+            console.log("Enter a check number to see the check details, type 'r' to rerun the checks or type 'q' to quit.");
             while(id < 0 || isNaN(id)) {
                 const tmp = await asyncPrompt("> ");
                 if(tmp.toLowerCase() === "q") {
+                    console.log("");
+                    return;
+                } else if (tmp.toLowerCase() === "r") {
+                    console.log("");
+                    await checkCode();
                     return;
                 } else {
                     id = parseInt(tmp);
@@ -101,7 +107,7 @@ async function checkCode(): Promise<void> {
                         console.log(chalk.gray.italic(`$$ ${line.content}`));
                         break;
                     case "INPUT":
-                        console.log(chalk.gray("> ") + chalk.greenBright(line.content));
+                        console.log(chalk.gray("> ") + chalk.greenBright(line.content.replace(/\s/, "␣")));
                         break;
                     case "OUTPUT":
                         console.log(chalk.green(`  ${line.content}`));

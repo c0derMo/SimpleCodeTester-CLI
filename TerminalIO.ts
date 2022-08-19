@@ -22,8 +22,10 @@ class Progress {
     }
 
     startSpinner(): void {
-        process.stdout.write("\u001b[?25l");
-        this.interval = setInterval(Progress._updateSpinner, 80, this);
+        if (this.interval == null) {
+            process.stdout.write("\u001b[?25l");
+            this.interval = setInterval(Progress._updateSpinner, 80, this);
+        }
     }
 
     stopSpinner(): void {
